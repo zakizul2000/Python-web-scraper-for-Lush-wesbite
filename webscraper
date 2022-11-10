@@ -1,0 +1,52 @@
+from gettext import find
+from requests_html import HTMLSession
+from bs4 import BeautifulSoup
+import requests
+import pandas as pd
+
+s = HTMLSession()
+url = 'https://www.lushusa.com/bath/bath-bombs/rangoli-dreams/9999905921.html'
+reviewlist = []
+
+def get_soup(url):
+    r = requests.get('http://localhost:8050/render.html', params={'url': url, 'wait': 3})
+    soup = BeautifulSoup(r.text, 'html.parser')
+    return soup
+
+def getnextpage(soup):
+    pages = soup.find('div', {'class': 'pr-rd-pagination'})
+    if pages.find_all('a', {'class': 'pr-rd-pagination-btn pr-rd-pagination-btn--next'}):
+        next_page = soup.find_all('a', {'class': 'pr-rd-pagination-btn pr-rd-pagination-btn--next'})
+        print(next_page)
+        for element in next_page:
+            url = element.get("href")
+            print(url)
+            return url
+    else:
+        return print("No URL found.")
+
+def get_reviews(soup):
+    reviews = soup.find_all('div', {'class': 'pr-review'})
+    for item in reviews:
+        review = {
+    'title': item.find('span', {'class': 'pr-rd-review-headline pr-h2'}).text,
+    'rating': float(item.find('div', {'class': 'pr-rd-star-rating'}).text),
+    'body': item.find('p', {'class': 'pr-rd-description-text'}).text,
+        }
+        reviewlist.append(review)
+
+while True:   
+    try:
+        soup = get_soup(url)
+        get_reviews(soup)
+        print("Number of rows: ", len(reviewlist))
+
+        #get new URL
+        url = getnextpage(soup)
+    except:
+        print("No more URLs.")
+        break
+
+df = pd.DataFrame(reviewlist)
+df.to_excel('rangoli-reviews.xlsx', index=False)
+print("Fin.")
